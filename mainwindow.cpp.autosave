@@ -128,9 +128,9 @@ QPointF MainWindow::isoPoint(QPointF &beginPoint)
     return endPoint;
 }
 
-qreal MainWindow::computeArcLength()
+void MainWindow::computeArcLength()
 {
-    qreal arclength;
+
     setCoeficient();
     QVector<qreal> g_coeficient(5,0);
     g_coeficient[0] = 9*(coefficient.at(0).x()*coefficient.at(0).x()+coefficient.at(0).y()*coefficient.at(0).y());
@@ -143,7 +143,7 @@ qreal MainWindow::computeArcLength()
     g_coeficient[4] = coefficient.at(2).x()*coefficient.at(2).x()+coefficient.at(2).y()*coefficient.at(2).y();
     //!     利用龙贝格积分计算弧长
 
-    return arclength;
+
 }
 
 
