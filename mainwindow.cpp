@@ -128,7 +128,7 @@ QPointF MainWindow::isoPoint(QPointF &beginPoint)
     return endPoint;
 }
 
-qreal MainWindow::computeArcLength()
+void MainWindow::computeArcLength()
 {
     qreal arclength;
     setCoeficient();
@@ -143,7 +143,7 @@ qreal MainWindow::computeArcLength()
     g_coeficient[4] = coefficient.at(2).x()*coefficient.at(2).x()+coefficient.at(2).y()*coefficient.at(2).y();
     //!     利用龙贝格积分计算弧长
 
-    return arclength;
+
 }
 
 
@@ -176,7 +176,9 @@ void MainWindow::drawGrid(QGraphicsScene *scene)
     QPainterPath path;
     QPen pen;
     pen.setWidthF(0.5);
+
     pen.setStyle(Qt::DotLine);
+
     for(int t = 0;t<width;t+=scale){
         path.lineTo(QPointF(t,height));
         path.moveTo(QPointF(t+scale,0));
