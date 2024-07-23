@@ -5,6 +5,7 @@
 #include <qboxlayout.h>
 #include <QDebug>
 #include <QtMath>
+#include <limits.h>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -23,9 +24,16 @@ MainWindow::MainWindow(QWidget *parent)
     setSrcdata();
     if(!desdata.isEmpty()) return;
     getDesdata();
-    drawPoint(scene);
+    drawContralPoint(scene);
     drawCurate(scene);
     drawGrid(scene);
+//    setCoeficient();
+//    setCoeficientG();
+//    computeArcLength();
+//    getIsoTime();
+//    computeIsoPoint();
+//    drawSegment(scene);
+
 
 }
 
@@ -45,7 +53,8 @@ void MainWindow::setSrcdata()
         srcdata.append(QPointF(value_x,value_y));
     }
     std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b){
-        return a.x()==b.x()?a.y()<b.y():a.x()<b.x();
+        qreal tolerence = 1e-9;
+        return abs(a.x()-b.x())<tolerence?a.y()<b.y():a.x()<b.x();
     });
     for(const QPointF &point:srcdata)
         qDebug()<<point;
@@ -80,7 +89,7 @@ void MainWindow::getDesdata()
         desdata.append(resultPoint);
     }
 }
-
+//!     贝塞尔曲线关于时间t的参数方程的四个系数
 void MainWindow::setCoeficient()
 {
     if(!coefficient.isEmpty()) return;
@@ -92,6 +101,7 @@ void MainWindow::setCoeficient()
     coefficient.append(srcdata[0]-srcdata[3]);
 }
 
+//!     根据计算得到时间t时  曲线上的点
 QPointF MainWindow::computePoint(qreal &t)
 {
     int size = srcdata.size();
@@ -113,41 +123,183 @@ QPointF MainWindow::computePoint(qreal &t)
 
     return resultPoint;
 }
-
-QPointF MainWindow::isoPoint(QPointF &beginPoint)
+//!     用牛顿迭代法，得到曲线上的等分点的时间
+void MainWindow::getIsoTime()
 {
-    QPointF endPoint;
+    //!     选择一个初始猜测值x0,它应该尽可能接近方程的根，以提高迭代的收敛速度。
     //!     采用牛顿迭代法计算得到下一个点的  t  坐标
     //!     x_{k+1} = x_{k}-f(x_{k})/f'(x_{k})
-    //! 当|x_{k+1}-x_{k}|<epslion or |f(t)|足够小 几乎没变化时结束
+    //! 当|x_{k+1}-x_{k}|< δ or |f(t)|< ε 几乎没变化时结束
     //!     f严格单调递增  所以f'(t)严格大于0
     //!     可以采用理查森外推的四阶中心差分公式计算f'(t)
     //!     这里的f(t)是弧长的积分不是贝塞尔曲线的方程
     //!     合理的方式是  在计算desdata时顺便计算弧长公式  这里是以时间  t  均分的
     //!     不行  这样会误差累积         将误差设置比较小  使得累积的误差也比较小
-    return endPoint;
+    //!     记F_{i}(τ) = \int_{0}^{τ}  f(t) dt - (i/segcount)*arclength;
+    //!     则  F'(τ) = f(τ)
+    int MaxIterations = 1e5;
+    segtime.append(precis);
+    for(int j = 1;j<segcount;++j){
+        //!     这里  t=0 被插入了两次
+        QList<qreal>::reverse_iterator it = segtime.rbegin();
+        qreal x0  = *it;
+        for(int i = 0;i<MaxIterations;++i){
+            qreal dF = compute_f(x0);
+            if(abs(dF)<delta){
+                qDebug()<<"The derivative is close to zero, stopping the iteration";
+                qDebug()<<"stop to compute the "<<j<<"th segment";
+                qDebug()<<"The time of "<<j<<"th segment time is \t"<<x0;
+                segtime.append(x0);
+                break;
+            }
+            //!     一直往负方向跑  什么东西呀
+            //!     要么computeSubArcLength(x0) 要么arclength没有  为什么
+            qreal F = computeSubArcLength(x0)-(j/segcount)*arclength;
+            qreal x1 = x0-F/dF;
+            if(abs(x0-x1)<epslion){
+                qDebug()<<"abs(x0-x1)<epslion,stop the iteration";
+                qDebug()<<"The time of "<<j<<"th segment time is \t"<<x0;
+                segtime.append(x1);
+                break;
+            }
+            x0 = x1;
+        }
+        qDebug()<<"Reaching the MaxIterations,"<<"\t"<<"stop to compute the"<<j<<"th segment";
+        qDebug()<<"The time of "<<j<<"th segment time is \t"<<x0;
+        segtime.append(x0);
+    }
+    segtime.append(1);
+
 }
 
+void MainWindow::computeIsoPoint()
+{
+    for(auto &time:segtime){
+        segdata.append(computePoint(time));
+    }
+
+}
+
+
+//!     计算从0——t，贝塞尔曲线的弧长
+//!     这里如果是begintime——endtime会不会产生误差累积
+//!     难道类似龙贝格积分 再算一次？？  只是选取 M  N  小一些？？？
+qreal MainWindow::computeSubArcLength(const qreal &t)
+{
+    //!     t=0时返回0
+    if(abs(t)<1e-9) return 0;
+    int n = 5;
+    int m = 5;
+    QVector<qreal> romberg(n+1,0);
+    //!     h = t   表示计算从0——t   贝塞尔曲线的弧长
+    qreal h = t;
+    //!     为什么这里总会是NAN
+    //!     compute_f(*) 我们经常用  不如直接先计算
+    //!     但是这里的  h  会不同  所以不能先计算
+    int size = static_cast<int>(qPow(2,n)+1e-4);
+    QVector<qreal> f(size,0);
+    for(int i = 0;i<size;++i){
+        f[i] = compute_f(i*h/size);
+    }
+    romberg[0] = (compute_f(0)+compute_f(h))/2;//!      这里为什么不计算值
+    for(int i = 1;i<=n;++i){
+        h/=2;
+        qreal rest = 0;
+        for(qreal j = 1;j<=qPow(2,i-1)+1e-5;++j){
+            rest+=compute_f((2*i-1)*h);
+        }
+        romberg[i] = romberg[i-1]+rest;
+    }
+    //!     计算m阶龙贝格积分R(n,m)
+    for(int i = 1;i<=m;++i){
+        qreal temp1 = romberg[i-1];
+        qreal temp2 = 0;
+        for(int j = i;j<=n;++j){
+            temp2 = romberg[j];
+            romberg[j] = temp2 + qPow((qPow(4,i)-1),-1)*(temp2-temp1);
+            temp1 = temp2;
+        }
+    }
+    return romberg[n];
+}
+
+
+//!     利用数值积分计算得到曲线弧长
 void MainWindow::computeArcLength()
 {
-    qreal arclength;
-    setCoeficient();
-    QVector<qreal> g_coeficient(5,0);
-    g_coeficient[0] = 9*(coefficient.at(0).x()*coefficient.at(0).x()+coefficient.at(0).y()*coefficient.at(0).y());
-    g_coeficient[1] = 12*(coefficient.at(0).x()*coefficient.at(1).x()+coefficient.at(0).y()*coefficient.at(1).y());
-
-    g_coeficient[2] = 4*(coefficient.at(1).x()*coefficient.at(1).x()+coefficient.at(0).y()*coefficient.at(0).y());
-    g_coeficient[2]+= 6*(coefficient.at(0).x()*coefficient.at(2).x()+coefficient.at(0).y()*coefficient.at(2).y());
-
-    g_coeficient[3] = 4*(coefficient.at(1).x()*coefficient.at(2).x()+coefficient.at(1).y()*coefficient.at(2).y());
-    g_coeficient[4] = coefficient.at(2).x()*coefficient.at(2).x()+coefficient.at(2).y()*coefficient.at(2).y();
-    //!     利用龙贝格积分计算弧长
-
+    int n = 10;
+    int m = 10;
+//!    qreal interval_num = qPow(2,n);     //!      设置等分区间的数目
+    //!      计算零阶龙贝格积分R(n,0)
+    QVector<qreal> romberg(n+1,0);
+    qreal h = 1;
+    //!     还是一样   总是compute_f(0)+compute_f(h)没有
+    //!     可能是因为在调用compute_f时  算出来的值不在定义域内
+    //!     所以返回NAN
+    romberg[0] = (compute_f(0)+compute_f(h))/2;
+    for(int i = 1;i<=n;++i){
+        h/=2;
+        qreal rest = 0;
+        for(qreal j = 1;j<=qPow(2,i-1)+1e-5;++j){
+            rest+=compute_f((2*i-1)*h);
+        }
+        romberg[i] = romberg[i-1]+rest;
+    }
+    //!     计算m阶龙贝格积分R(n,m)
+    for(int i = 1;i<=m;++i){
+        qreal temp1 = romberg[i-1];
+        qreal temp2 = 0;
+        for(int j = i;j<=n;++j){
+            temp2 = romberg[j];
+            romberg[j] = temp2 + qPow((qPow(4,i)-1),-1)*(temp2-temp1);
+            temp1 = temp2;
+        }
+    }
+    //!     因为需要计算  2^{M}+1 个函数值，所以通常只选取一个适度的 M 值
+    //!     更为精致的算法应该包含一个自动终止程序，当达到指定的误差标准时停止计算
+    arclength = romberg[m];
 
 }
 
+//!     设置函数G的系数
+void MainWindow::setCoeficientG()
+{
+    if(!coefficientG.isEmpty()) return;
+    coefficientG.append(9*(coefficient.at(0).x()*coefficient.at(0).x()+coefficient.at(0).y()*coefficient.at(0).y()));
+    coefficientG.append(12*(coefficient.at(0).x()*coefficient.at(1).x()+coefficient.at(0).y()*coefficient.at(1).y()));
+    coefficientG.append(4*(coefficient.at(1).x()*coefficient.at(1).x()+coefficient.at(0).y()*coefficient.at(0).y())+
+                        6*(coefficient.at(0).x()*coefficient.at(2).x()+coefficient.at(0).y()*coefficient.at(2).y()));
+    coefficientG.append(4*(coefficient.at(1).x()*coefficient.at(2).x()+coefficient.at(1).y()*coefficient.at(2).y()));
+    coefficientG.append(coefficient.at(2).x()*coefficient.at(2).x()+coefficient.at(2).y()*coefficient.at(2).y());
+}
+qreal MainWindow::compute_f(const qreal &t)
+{
+        //!     这里加上一个  const   就解决了
+        //!     这样   1   0  都可以用了
+        //!     还要注意sqrt接受的函数是否可能小于零
+        //!     这里result可能小于0  因此我们要将这种
+        //!     情况特殊处理
+        //!     所以这里返回sqrt(result)是不行的
+        //!     只能是返回result  然后根据正负做特殊处理
+        double result = 0;
+        for(int i = 0;i<5;++i){
+            result+=coefficientG.at(i)*qPow(t,4-i);
+        }
+//        qDebug("f(%lf)=%lf",t,result);
+        return sqrt(result);
+}
+
+qreal MainWindow::compute_gradf(const qreal &t)
+{
+    qreal result = 0;
+    for(int i = 0;i<4;++i){
+        result+=(4-i)*coefficientG.at(i)*qPow(t,3-i);
+    }
+    return 0.5*qPow(compute_f(t),-1)*result;
+}
 
 
+//!     画贝塞尔曲线
 void MainWindow::drawCurate(QGraphicsScene *scene)
 {
     QPainterPath path;
@@ -158,8 +310,8 @@ void MainWindow::drawCurate(QGraphicsScene *scene)
     }
     scene->addPath(path,QPen(Qt::red));
 }
-
-void MainWindow::drawPoint(QGraphicsScene *scene)
+//!     画贝塞尔曲线的控制点
+void MainWindow::drawContralPoint(QGraphicsScene *scene)
 {
     for(const QPointF &point:srcdata){
         QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
@@ -168,7 +320,7 @@ void MainWindow::drawPoint(QGraphicsScene *scene)
         scene->addItem(item);
     }
 }
-
+//!     画坐标栅格图
 void MainWindow::drawGrid(QGraphicsScene *scene)
 {
     qreal width = this->width();
@@ -190,10 +342,10 @@ void MainWindow::drawGrid(QGraphicsScene *scene)
     scene->addPath(path,pen);
     qDebug()<<"Grid drawed";
 }
-
+//!     画等距分段贝塞尔曲线
 void MainWindow::drawSegment(QGraphicsScene *scene)
 {
-    for(const QPointF &point:equidata){
+    for(const QPointF &point:segdata){
         QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
         item->setBrush(Qt::green);
         item->setPos(point);
