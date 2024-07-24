@@ -52,7 +52,7 @@ private:
     qreal epslion = 1e-5;
     qreal tolerancrerror = 1e-7;    //      设置计算弧长时的容忍误差
     int scale = 50;                 //      设置坐标的刻度
-    int segcount = 50;              //      设置等距分段的数目
+    int segcount = 10;              //      设置等距分段的数目
 
 };
 

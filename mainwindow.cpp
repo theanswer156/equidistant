@@ -31,9 +31,9 @@ MainWindow::MainWindow(QWidget *parent)
     setCoeficientG();
     setCoeficientBPrime();
     computeArcLength();
-    getIsoTime();
-    computeIsoPoint();
-    drawSegment(scene);
+//    getIsoTime();
+//    computeIsoPoint();
+//    drawSegment(scene);
 
 
 }
@@ -45,18 +45,22 @@ MainWindow::~MainWindow()
 
 void MainWindow::setSrcdata()
 {
-    QRandomGenerator random;
-    quint32 seed = static_cast<quint32>(QRandomGenerator::global()->bounded(101));
-    random.seed(seed);
-    for(int i = 0;i<4;++i){
-        qreal value_x = static_cast<qreal>(random.bounded(this->width())/2e1);
-        qreal value_y = static_cast<qreal>(random.bounded(this->height()/2e1));
-        srcdata.append(QPointF(value_x,value_y));
-    }
-    std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b){
-        qreal tolerence = 1e-9;
-        return abs(a.x()-b.x())<tolerence?a.y()<b.y():a.x()<b.x();
-    });
+//    QRandomGenerator random;
+//    quint32 seed = static_cast<quint32>(QRandomGenerator::global()->bounded(501));
+//    random.seed(seed);
+//    for(int i = 0;i<4;++i){
+//        qreal value_x = static_cast<qreal>(random.bounded(this->width())/10);
+//        qreal value_y = static_cast<qreal>(random.bounded(this->height())/10);
+//        srcdata.append(QPointF(value_x,value_y));
+//    }
+//    std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b){
+//        qreal tolerence = 1e-9;
+//        return abs(a.x()-b.x())<tolerence?a.y()<b.y():a.x()<b.x();
+//    });
+    srcdata.push_back(QPointF(9.0,11.0));
+    srcdata.push_back(QPointF(22.0,12.0));
+    srcdata.push_back(QPointF(50.0,14.0));
+    srcdata.push_back(QPointF(58.0,17.0));
     for(const QPointF &point:srcdata)
         qDebug()<<point;
 }
@@ -129,51 +133,34 @@ void MainWindow::getIsoTime()
     //!     不行  这样会误差累积         将误差设置比较小  使得累积的误差也比较小
     //!     记F_{i}(τ) = \int_{0}^{τ}  f(t) dt - (i/segcount)*arclength;
     //!     则  F'(τ) = f(τ)
-    int MaxIterations = 1e4;
-    qreal damping = 5e-4;       //!     由于函数值与导数值的比很大  所以设置阻尼系数
-    segtime.append(precis);
-    for(int j = 1;j<segcount;++j){
-        //!     这里  t=0 被插入了两次
-        QList<qreal>::reverse_iterator it = segtime.rbegin();
-        qreal x0  = *it;
-        for(int i = 0;i<MaxIterations;++i){
-            qreal dF = compute_f(x0);
-            if(abs(dF)<delta){
-                qDebug()<<"The derivative is close to zero, stopping the iteration";
-                qDebug()<<"stop to compute the "<<j<<"th segment";
-                qDebug()<<"The time of "<<j<<"th segment time is \t"<<x0;
-//                segtime.append(x0);
-                break;
-            }
-            //!     一直往负方向跑  什么东西呀
-            //!     要么computeSubArcLength(x0) 要么arclength没有  为什么
-            qreal subArcLength = computeSubArcLength(x0);
-            qDebug("The sub ArcLength from 0 to %llf is %llf",x0,subArcLength);
-            qDebug()<<"j:"<<j<<"\t"<<"segcount:"<<segcount<<"\t"<<"arclength:"<<arclength;
-            //!     这就很奇怪了   rest为什么不计算
-            qreal rest = static_cast<qreal>(j*0.02)*arclength;
-            qDebug()<<"The value of rest is"<<rest;
-            qreal F = subArcLength-(rest);
-            qDebug()<<"F/dF:"<<F/dF;
-            qreal x1 = x0-damping*(F/dF);
-            //!     采用反射策略
-            if(x1<0){
-                x1=-x1;
-            }else if(x1>1){
-                x1=2-x1;
-            }
-            if(abs(x0-x1)<epslion){
-                qDebug()<<"abs(x0-x1)<epslion,stop the iteration";
-                qDebug()<<"The time of "<<j<<"th segment time is \t"<<x0;
-                //                segtime.append(x1);
-                break;
-            }
 
-            x0 = x1;
+
+    //!     如果采用二分法来找  那么可以在前面计算romberg数组的时候就把
+    //!     其实还可以建立映射  用于减少计算
+    segtime.append(0);
+    for(qreal i = 1;i<segcount+1e-5;++i){
+        qreal left = segtime.at(segtime.size()-1);
+        qreal right = 1;
+        //!     还是一样  问什么还是0
+        qreal subArcLength = static_cast<qreal>(i/segcount)*arclength;
+        qreal biCutPrircis = 1e-4;
+        while(right-left > biCutPrircis){
+            //!     移位运算符为什么没用
+            qreal mid = (left+right)/2;
+            //!     计算中间的函数值和
+            //!     t=0.5时为什么差这么多
+            qreal F_mid = computeSubArcLength(mid);
+            qDebug("The arclength from 0 to %llf is %llf",mid,F_mid);
+            //!     问题是这里如果用map容器  那么可能mid并不会直接出现
+            //!     而是有的会以极接近的数  从而我们不好找  这样每次都
+            //!     查找一次会不会同样耗费时间
+            if(F_mid>subArcLength){
+                right = mid;
+            }else{
+                left = mid;
+            }
         }
-        qDebug()<<"Reaching the MaxIterations,"<<"stop to compute the"<<j<<"th segment";
-        qDebug()<<"The time of "<<j<<"th segment time is \t"<<x0;
-        segtime.append(x0);
+        segtime.append((left+right)/2);
     }
     segtime.append(1);
 
@@ -195,51 +182,10 @@ qreal MainWindow::computeSubArcLength(const qreal &t)
 {
     //!     t=0时返回0
     if(abs(t)<1e-9) return 0;
-    int n = 5;
-    int m = 5;
+    int n = 2;
+    int m = 2;
     QVector<qreal> romberg(n+1,0);
-    //!     h = t   表示计算从0——t   贝塞尔曲线的弧长
     qreal h = t;
-    //!     为什么这里总会是NAN
-    //!     compute_f(*) 我们经常用  不如直接先计算
-    //!     但是这里的  h  会不同  所以不能先计算
-    int size = static_cast<int>(qPow(2,n)+1e-4);
-    QVector<qreal> f(size,0);
-    for(int i = 0;i<size;++i){
-        f[i] = compute_f(i*h/size);
-    }
-    romberg[0] = (compute_f(0)+compute_f(h))/2;//!      这里为什么不计算值
-    for(int i = 1;i<=n;++i){
-        h/=2;
-        qreal rest = 0;
-        for(qreal j = 1;j<=qPow(2,i-1)+1e-5;++j){
-            rest+=compute_f((2*j-1)*h);
-        }
-        romberg[i] = romberg[i-1]+rest;
-    }
-    //!     计算m阶龙贝格积分R(n,m)
-    for(int i = 1;i<=m;++i){
-        qreal temp1 = romberg[i-1];
-        qreal temp2 = 0;
-        for(int j = i;j<=n;++j){
-            temp2 = romberg[j];
-            romberg[j] = temp2 + qPow((qPow(4,i)-1),-1)*(temp2-temp1);
-            temp1 = temp2;
-        }
-    }
-    return romberg[n];
-}
-
-
-//!     利用数值积分计算得到曲线弧长
-void MainWindow::computeArcLength()
-{
-    int n = 10;
-    int m = 10;
-//!    qreal interval_num = qPow(2,n);     //!      设置等分区间的数目
-    //!      计算零阶龙贝格积分R(n,0)
-    QVector<qreal> romberg(n+1,0);
-    qreal h = 1;
     //!     还是一样   总是compute_f(0)+compute_f(h)没有
     //!     可能是因为在调用compute_f时  算出来的值不在定义域内
     //!     所以返回NAN
@@ -264,7 +210,47 @@ void MainWindow::computeArcLength()
     }
     //!     因为需要计算  2^{M}+1 个函数值，所以通常只选取一个适度的 M 值
     //!     更为精致的算法应该包含一个自动终止程序，当达到指定的误差标准时停止计算
-    arclength = romberg[m];
+    return  romberg[n];
+}
+
+
+//!     利用数值积分计算得到曲线弧长
+//!     从网上积分网站来看   这个方法就是有问题的
+//!     相差很大  47352——>161
+void MainWindow::computeArcLength()
+{
+    int n = 2;
+    int m = 2;
+//!    qreal interval_num = qPow(2,n);     //!      设置等分区间的数目
+    //!      计算零阶龙贝格积分R(n,0)
+    //!      不用滚动的方法了  直接用矩阵的形式
+    //!     龙贝格积分算出来的值误差有点大
+    //!     龙贝格积分的误差累积原因
+    QVector<QVector<qreal>> romberg(n+1,QVector<qreal>(m+1,0));
+    qreal h = 1;
+    //!     还是一样   总是compute_f(0)+compute_f(h)没有
+    //!     可能是因为在调用compute_f时  算出来的值不在定义域内
+    //!     所以返回NAN
+    romberg[0][0] = (compute_f(0)+compute_f(h))/2;
+    for(int i = 1;i<=n;++i){
+        h/=2;
+        qreal rest = 0;
+        for(qreal j = 1;j<=qPow(2,i-1)+1e-5;++j){
+            rest+=compute_f((2*j-1)*h);
+        }
+        romberg[i][0] = romberg[i-1][0]+rest;
+    }
+    //!     计算m阶龙贝格积分R(n,m)
+    for(int i = 1;i<=m;++i){
+        for(int j = 1;j<=i;++j){
+            romberg[i][j] = romberg[i][j-1]+(1/(qPow(4,i)-1))*(romberg[i][j-1]-romberg[i-1][j-1]);
+            qDebug()<<romberg[i][j]<<"\t"<<romberg[i-1][j]<<"\t"<<romberg[i-1][j-1];
+        }
+    }
+    //!     因为需要计算  2^{M}+1 个函数值，所以通常只选取一个适度的 M 值
+    //!     更为精致的算法应该包含一个自动终止程序，当达到指定的误差标准时停止计算
+    //!     龙贝格积分算出来的为什么不对呢
+    arclength = romberg[n][m];
 
 }
 
@@ -305,7 +291,7 @@ qreal MainWindow::compute_f(const qreal &t)
 //        result+=coefficientG.at(i)*qPow(t,4-i);
 //    }
     result = sqrt(result);
-    qDebug("f(%llf)=%llf",t,result);
+//    qDebug("f(%llf)=%llf",t,result);
     return result;
 }
 
@@ -315,7 +301,7 @@ qreal MainWindow::compute_gradf(const qreal &t)
     for(int i = 0;i<4;++i){
         result+=(4-i)*coefficientG.at(i)*qPow(t,3-i);
     }
-    return 0.5*qPow(compute_f(t),-1)*result;
+    return 0.5*qPow(compute_f(t),-1)*abs(result);
 }
 
 
@@ -366,7 +352,8 @@ void MainWindow::drawGrid(QGraphicsScene *scene)
 void MainWindow::drawSegment(QGraphicsScene *scene)
 {
     for(const QPointF &point:segdata){
-        QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
+        qDebug()<<point;
+        QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,10,10);
         item->setBrush(Qt::green);
         item->setPos(point);
         scene->addItem(item);
