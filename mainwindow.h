@@ -16,6 +16,7 @@ public:
     void getDesdata();                      //      利用矩阵方法计算贝塞尔曲线
     void setCoeficient();                   //      设置贝塞尔曲线关于时间t的参数方程的参数
     void setCoeficientG();                  //      设置函数 g 的参数
+    void setCoeficientBPrime();
 
     void computeArcLength();                //      计算贝塞尔曲线的弧长
     void getIsoTime();                      //      计算贝塞尔曲线等距点的时间值
@@ -41,7 +42,10 @@ private:
     QList<QPointF> segdata;         //      存储等距数据点
     QList<QPointF> coefficient;     //      存储贝塞尔曲线关于时间 t 的方差的参数
     QList<qreal> coefficientG;
+
+    QList<QPointF> coefBPrime;
     QList<qreal> segtime;
+    QVector<int> pascaTri{0,1,3,3,1};
     qreal arclength = 0;            //      弧长初始化为零
     qreal precis = 1e-2;            //      设置矩阵法计算的贝塞尔曲线精度
     qreal delta = 1e-5;             //      设置牛顿迭代法参数
