@@ -2,9 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QApplication>
+
 #include <QList>
 #include <QGraphicsView>
 #include <QGraphicsScene>
+#include <QGraphicsRectItem>
+#include <QEvent>
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -19,6 +23,7 @@ public:
     void setCoeficientBPrime();
 
     void computeArcLength();                //      计算贝塞尔曲线的弧长
+
     void getIsoTime();                      //      计算贝塞尔曲线等距点的时间值
     void computeIsoPoint();
 
@@ -28,6 +33,10 @@ public:
     QPointF computePoint(qreal &t);
 
 protected:
+    void paintEvent(QPaintEvent *event) override{
+        update();
+    }
+
 
 private:
     void drawCurate(QGraphicsScene *scene);
@@ -52,7 +61,7 @@ private:
     qreal epslion = 1e-5;
     qreal tolerancrerror = 1e-7;    //      设置计算弧长时的容忍误差
     int scale = 50;                 //      设置坐标的刻度
-    int segcount = 10;              //      设置等距分段的数目
+    int segcount = 50;              //      设置等距分段的数目
 
 };
 
