@@ -28,7 +28,6 @@ MainWindow::MainWindow(QWidget *parent)
     getDesdata();
     drawContralPoint(scene);
     drawCurate(scene);
-//    drawGrid(scene);
     setCoeficient();
     setCoeficientBPrime();
     setCoeficientG();
@@ -38,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
 //    NewtonIterator();
     computeIsoPoint();
     drawSegment(scene);
+//    drawGrid(scene);
 
 
 }
@@ -107,10 +107,10 @@ void MainWindow::getIsoTime()
 
     qreal tol = 1e-1;
     segtime.append(0);
-    for(qreal i = 1;i<segcount-1e-5;++i){
+    for(int i = 1;i<segcount-1e-5;++i){
         qreal left = segtime.at(segtime.size()-1);
         qreal right = 1;
-        qreal subArcLength = static_cast<qreal>(i/segcount)*arclength;
+        qreal subArcLength = static_cast<qreal>(i *1.0/segcount)*arclength;
         qreal biCutPrircis = 1e-5;
         while(right-left > biCutPrircis){
             qreal mid = (left+right)/2;
