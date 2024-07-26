@@ -61,9 +61,10 @@ void MainWindow::setSrcdata()
 //        qreal tolerence = 1e-9;
 //        return abs(a.x()-b.x())<tolerence?a.y()<b.y():a.x()<b.x();
 //    });
-//    srcdata.push_back(QPointF(302.0,469.0));
-//    srcdata.push_back(QPointF(359.0,460.0));
+
 //    srcdata.push_back(QPointF(215.0,76.0));
+//    srcdata.push_back(QPointF(302.0,469.0));
+//    srcdata.push_back(QPointF(359.0,60.0));
 //    srcdata.push_back(QPointF(505.0,207.0));
     for(const QPointF &point:srcdata)
         qDebug()<<point;
@@ -119,6 +120,7 @@ void MainWindow::getIsoTime()
             //!     找不到想要的地方
             qreal F_mid = computeSubArcLength(mid);
             qDebug()<<"Compute the "<<i<<"th segment";
+
             qDebug("The arclength from 0 to %lf is %lf",mid,F_mid);
             if(abs(F_mid-subArcLength)<tol){
                 segtime.append(mid);
@@ -266,6 +268,7 @@ qreal MainWindow::computeSubArcLength(const qreal &t)
 //        qDebug()<<romberg[i];
 //    }
 
+
     return result;
 }
 //!     计算从begin到end时间曲线的弧长
@@ -316,6 +319,7 @@ qreal MainWindow::computeSubArcLength(const qreal &begin, const qreal &end)
         if(romberg[i][0]<1e-5) break;
         qDebug()<<romberg[i];
     }
+
 
     return result;
 }
@@ -467,7 +471,7 @@ void MainWindow::drawGrid(QGraphicsScene *scene)
     qreal height = scene->height();
     QPainterPath path;
     QPen pen;
-    pen.setWidthF(0.5);
+    pen.setWidthF(1.0);
 
     pen.setStyle(Qt::DotLine);
 
