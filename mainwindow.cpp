@@ -6,7 +6,6 @@
 #include <QDebug>
 #include <QtMath>
 #include <limits.h>
-#include <QSizePolicy>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -20,8 +19,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 设置视图的一些属性
     graphicsView->setRenderHint(QPainter::Antialiasing);
-//    graphicsView->setFixedSize(500, 500); // 设置视图固定大小
-//    graphicsView->resizeAnchor();
     setCentralWidget(graphicsView);
 
 
@@ -31,13 +28,14 @@ MainWindow::MainWindow(QWidget *parent)
     getDesdata();
     drawContralPoint(scene);
     drawCurate(scene);
-    drawGrid(scene);
+//    drawGrid(scene);
     setCoeficient();
     setCoeficientBPrime();
     setCoeficientG();
     computeArcLength();
 
     getIsoTime();
+//    NewtonIterator();
     computeIsoPoint();
     drawSegment(scene);
 
@@ -55,18 +53,18 @@ void MainWindow::setSrcdata()
     quint32 seed = static_cast<quint32>(QRandomGenerator::global()->bounded(2001));
     random.seed(seed);
     for(int i = 0;i<4;++i){
-        qreal value_x = static_cast<qreal>(random.bounded(this->width()));
-        qreal value_y = static_cast<qreal>(random.bounded(this->height()));
+        qreal value_x = static_cast<qreal>(random.bounded(this->width())*2);
+        qreal value_y = static_cast<qreal>(random.bounded(this->height())*2);
         srcdata.append(QPointF(value_x,value_y));
     }
 //    std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b){
 //        qreal tolerence = 1e-9;
 //        return abs(a.x()-b.x())<tolerence?a.y()<b.y():a.x()<b.x();
 //    });
-//    srcdata.push_back(QPointF(430.0,370.0));
-//    srcdata.push_back(QPointF(460.0,10.0));
-//    srcdata.push_back(QPointF(470.0,300.0));
-//    srcdata.push_back(QPointF(620.0,470.0));
+//    srcdata.push_back(QPointF(302.0,469.0));
+//    srcdata.push_back(QPointF(359.0,460.0));
+//    srcdata.push_back(QPointF(215.0,76.0));
+//    srcdata.push_back(QPointF(505.0,207.0));
     for(const QPointF &point:srcdata)
         qDebug()<<point;
 }
@@ -74,18 +72,6 @@ void MainWindow::setSrcdata()
 void MainWindow::getDesdata()
 {
     int size = srcdata.size();
-    QVector<int> pascaTri(size+1,0);
-    pascaTri[1] = 1;
-    for(int i = 1;i<=size;++i){
-        int temp1 = pascaTri[0];
-        int temp2 = 0;
-        for(int j = 1;j<=i;++j){
-            temp2 = pascaTri[j];
-            pascaTri[j]=temp1+temp2;
-            temp1 = temp2;
-        }
-    }
-
     for(qreal t = 0;t<1.0000;t+=precis){
         QPointF resultPoint={0,0};
         QVector<qreal> bernstein1(size,1),bernstein2(size,1);
@@ -103,46 +89,38 @@ void MainWindow::getDesdata()
 
 
 
-//!     用牛顿迭代法，得到曲线上的等分点的时间
+//!     用二分法，得到曲线上的等分点的时间
 void MainWindow::getIsoTime()
 {
     //!     选择一个初始猜测值x0,它应该尽可能接近方程的根，以提高迭代的收敛速度。
     //!     采用牛顿迭代法计算得到下一个点的  t  坐标
     //!     x_{k+1} = x_{k}-f(x_{k})/f'(x_{k})
-    //! 当|x_{k+1}-x_{k}|< δ or |f(t)|< ε 几乎没变化时结束
+    //!     当|x_{k+1}-x_{k}|< δ or |f(t)|< ε 几乎没变化时结束
     //!     f严格单调递增  所以f'(t)严格大于0
     //!     可以采用理查森外推的四阶中心差分公式计算f'(t)
     //!     这里的f(t)是弧长的积分不是贝塞尔曲线的方程
     //!     合理的方式是  在计算desdata时顺便计算弧长公式  这里是以时间  t  均分的
     //!     不行  这样会误差累积         将误差设置比较小  使得累积的误差也比较小
     //!     记F_{i}(τ) = \int_{0}^{τ}  f(t) dt - (i/segcount)*arclength;
-    //!     则  F'(τ) = f(τ)
+    //!     则  F'(τ) = f(τ)*f'(τ)
 
-
-    //!     如果采用二分法来找  那么可以在前面计算romberg数组的时候就把
-    //!     其实还可以建立映射  用于减少计算
     qreal tol = 1e-1;
     segtime.append(0);
-    for(qreal i = 1;i<segcount+1e-5;++i){
-        bool exitLoops = false;
+    for(qreal i = 1;i<segcount-1e-5;++i){
         qreal left = segtime.at(segtime.size()-1);
         qreal right = 1;
-        //!     还是一样  问什么还是0
-        //!     一直是零  没法变呀
         qreal subArcLength = static_cast<qreal>(i/segcount)*arclength;
-        qreal biCutPrircis = 1e-8;
+        qreal biCutPrircis = 1e-5;
         while(right-left > biCutPrircis){
-            //!     移位运算符为什么没用
             qreal mid = (left+right)/2;
             //!     计算中间的函数值和
-            //!     t=0.5时为什么差这么多
+            //!     采用这种方法的逻辑不对  这样的话只能
+            //!     动右边而且要小心提防Right变化过大
+            //!     找不到想要的地方
             qreal F_mid = computeSubArcLength(mid);
-            qDebug("The arclength from 0 to %llf is %llf",mid,F_mid);
-            //!     问题是这里如果用map容器  那么可能mid并不会直接出现
-            //!     而是有的会以极接近的数  从而我们不好找  这样每次都
-            //!     查找一次会不会同样耗费时间
+            qDebug()<<"Compute the "<<i<<"th segment";
+            qDebug("The arclength from 0 to %lf is %lf",mid,F_mid);
             if(abs(F_mid-subArcLength)<tol){
-                exitLoops = true;
                 segtime.append(mid);
                 break;
             }
@@ -159,6 +137,50 @@ void MainWindow::getIsoTime()
     segtime.append(1);
 
 }
+//!     牛顿迭代法寻找等分点
+void MainWindow::NewtonIterator()
+{
+    int MaxIterator = 1e4;
+    qreal tol = 1e-4;
+    qreal damping = 1;
+    segtime.append(0);
+    for(qreal i = 1;i<segcount;++i){
+        qreal subarclength = (i/segcount)*arclength;
+        qreal x0 = segtime.at(segtime.size()-1)+1.00/segcount;
+        for(int j = 0;j<MaxIterator;++j){
+            qreal f0 = computeSubArcLength(x0)-subarclength;
+            if(abs(f0)<epslion){
+                qDebug("abs(f0): %lf <epslion,stop this loop",f0);
+                qDebug("The %lf th segtime is %lf",i,x0);
+                segtime.append(x0);
+                break;
+            }
+            qreal df = compute_gradf(x0);
+            if(abs(df)<delta){
+                qDebug("abs(df): %lf <epslion,stop this loop",df);
+                qDebug("The %lf th segtime is %lf",i,x0);
+                segtime.append(x0);
+                break;
+            }
+            qreal x1=x0 - damping*(f0/df);
+            if(abs(x1-x0)<tol){
+                qDebug("x0: %lf, x1: %lf .abs(x1-x0)<tol,stop this loop",x0,x1);
+                qDebug("The %lf th segtime is %lf",i,x0);
+                segtime.append(x0);
+                break;
+            }
+            if(j == MaxIterator-1){
+                qDebug("reaching the MaxIterator , stop this loop");
+                qDebug("The %lf th segtime is %lf",i,x0);
+                segtime.append(x0);
+                break;
+            }
+            x0 = x1;
+        }
+
+    }
+    segtime.append(1);
+}
 
 void MainWindow::computeIsoPoint()
 {
@@ -172,8 +194,7 @@ QPointF MainWindow::computePoint(qreal &t)
 {
 
     QPointF resultPoint;
-    //!     帕斯卡三角算一次点就要用一次  直接当作成员把吧
-    //!     直接利用De Casteljau递推   三切线定理
+
     int size = srcdata.size();
     QVector<qreal> coefficient(size, 0);
     coefficient[0] = 1.000;
@@ -199,8 +220,6 @@ QPointF MainWindow::computePoint(qreal &t)
 }
 
 //!     计算从0——t，贝塞尔曲线的弧长
-//!     这里如果是begintime——endtime会不会产生误差累积
-//!     难道类似龙贝格积分 再算一次？？  只是选取 M  N  小一些？？？
 qreal MainWindow::computeSubArcLength(const qreal &t)
 {
     //!     t=0时返回0
@@ -220,9 +239,9 @@ qreal MainWindow::computeSubArcLength(const qreal &t)
 
         //!     计算零阶龙贝格积分
         for(int j = 1;j<=qPow(2,i-1);++j){
-            rest+=h*compute_f((2*j-1)*h);
+            rest+=compute_f((2*j-1)*h);
         }
-        romberg[i][0] =romberg[i-1][0]+rest;
+        romberg[i][0] =0.5*romberg[i-1][0]+rest*h;
         if(rest<tol){
             result = romberg[i][0];
             break;
@@ -232,7 +251,7 @@ qreal MainWindow::computeSubArcLength(const qreal &t)
             qreal error = qPow(qPow(4,j)-1,-1)*(romberg[i][j-1]-romberg[i-1][j-1]);
             romberg[j-1][i] = error;
             romberg[i][j] = romberg[i][j-1]+error;
-            if(error<tol){
+            if(abs(error)<tol){
                 exitLoops = true;
                 result = romberg[i][j];
                 break;
@@ -241,21 +260,68 @@ qreal MainWindow::computeSubArcLength(const qreal &t)
         if(exitLoops) break;
     }
     qDebug()<<"\n";
-    qDebug("The arclength from 0 to %llf is %llf",t,result);
+    qDebug("The arclength from 0 to %lf is %lf",t,result);
+//    for(int i = 0;i<romberg.size();++i){
+//        if(romberg[i][0]<1e-5) break;
+//        qDebug()<<romberg[i];
+//    }
+
+    return result;
+}
+//!     计算从begin到end时间曲线的弧长
+qreal MainWindow::computeSubArcLength(const qreal &begin, const qreal &end)
+{
+    //!     t=0时返回0
+    int n = 10;
+    int m = 10;
+    bool exitLoops = false;
+
+    qreal tol = 1e-1;
+    //!     这里容忍误差的设定与坐标的范围相关
+    qreal result = 0;
+    QVector<QVector<qreal>> romberg(n+1,QVector<qreal>(m+1,0));
+    qreal t1 = begin;
+    qreal t2 = end;
+    qreal h = t2-t1;
+    romberg[0][0] = h*(compute_f(t1)+compute_f(t2))/2;
+    for(int i = 1;i<=n;++i){
+        h/=2;
+        qreal rest = 0;
+
+        //!     计算零阶龙贝格积分
+        for(int j = 1;j<=qPow(2,i-1);++j){
+            rest+=compute_f(t1+(2*j-1)*h);
+        }
+        romberg[i][0] =0.5*romberg[i-1][0]+rest*h;
+        if(rest<tol){
+            result = romberg[i][0];
+            break;
+        }
+        //!     计算M阶龙贝格积分
+        for(int j = 1;j<=i;++j){
+            qreal error = qPow(qPow(4,j)-1,-1)*(romberg[i][j-1]-romberg[i-1][j-1]);
+            romberg[j-1][i] = error;
+            romberg[i][j] = romberg[i][j-1]+error;
+            if(abs(error)<tol){
+                exitLoops = true;
+                result = romberg[i][j];
+                break;
+            }
+        }
+        if(exitLoops) break;
+    }
+    qDebug()<<"\n";
+    qDebug("The arclength from %lf to %lf is %lf",t1,t2,result);
     for(int i = 0;i<romberg.size();++i){
         if(romberg[i][0]<1e-5) break;
         qDebug()<<romberg[i];
     }
-    //!     因为需要计算  2^{M}+1 个函数值，所以通常只选取一个适度的 M 值
-    //!     更为精致的算法应该包含一个自动终止程序，当达到指定的误差标准时停止计算
-    //!     龙贝格积分算出来的为什么不对呢
+
     return result;
 }
 
 
 //!     利用数值积分计算得到曲线弧长
-//!     从网上积分网站来看   这个方法就是有问题的
-//!     相差很大  47352——>161
 void MainWindow::computeArcLength()
 {
     int n = 10;
@@ -273,9 +339,9 @@ void MainWindow::computeArcLength()
 
         //!     计算零阶龙贝格积分
         for(int j = 1;j<=qPow(2,i-1);++j){
-            rest+=h*compute_f((2*j-1)*h);
+            rest+=compute_f((2*j-1)*h);
         }
-        romberg[i][0] =romberg[i-1][0]+rest;
+        romberg[i][0] =0.5*romberg[i-1][0]+rest*h;
         if(rest<tol){
             arclength = romberg[i][0];
             break;
@@ -285,7 +351,7 @@ void MainWindow::computeArcLength()
             qreal error = qPow(qPow(4,j)-1,-1)*(romberg[i][j-1]-romberg[i-1][j-1]);
             romberg[j-1][i] = error;
             romberg[i][j] = romberg[i][j-1]+error;
-            if(error<tol){
+            if(abs(error)<tol){
                 exitLoops = true;
                 arclength = romberg[i][j];
                 break;
@@ -297,11 +363,7 @@ void MainWindow::computeArcLength()
         if(romberg[i][0]<1e-5) break;
         qDebug()<<romberg[i];
     }
-    //!     因为需要计算  2^{M}+1 个函数值，所以通常只选取一个适度的 M 值
-    //!     更为精致的算法应该包含一个自动终止程序，当达到指定的误差标准时停止计算
-    //!     龙贝格积分算出来的为什么不对呢
-    //!
-    //!    arclength = romberg[n][m];   这一步不要 我们认为这里是不会发生的情况
+
 
 }
 
@@ -350,7 +412,6 @@ qreal MainWindow::compute_f(const qreal &t)
     //!     只能是返回result  然后根据正负做特殊处理
     if(t<0) return 1e-9;
     double result = 0;
-    //!     我直接判断不就好了？？？
     qreal xvalue = coefBPrime[0].x()*t*t+coefBPrime[1].x()*t+coefBPrime[2].x();
     qreal yvalue = coefBPrime[0].y()*t*t+coefBPrime[1].y()*t+coefBPrime[2].y();
     result = qPow(xvalue,2)+qPow(yvalue,2);
@@ -362,22 +423,20 @@ qreal MainWindow::compute_f(const qreal &t)
 
 //!      用下面这个也太离谱了
 
-
-//    for(int i = 0;i<5;++i){
-//        result+=coefficientG.at(i)*qPow(t,4-i);
-//    }
     result = sqrt(abs(result));
-    qDebug("f(%llf)=%llf",t,result);
+//    qDebug("f(%lf)=%lf",t,result);
     return result;
 }
 
 qreal MainWindow::compute_gradf(const qreal &t)
 {
-    qreal result = 0;
-    for(int i = 0;i<4;++i){
-        result+=(4-i)*coefficientG.at(i)*qPow(t,3-i);
-    }
-    return 3*0.5*qPow(compute_f(t),-1)*abs(result);
+    qreal xvalue = coefBPrime.at(0).x()*t*t+2*coefBPrime.at(1).x()*t+coefBPrime.at(2).x();
+    qreal xsign = xvalue<0?-1:1;
+    xvalue = abs(xvalue)*xsign*2*(coefBPrime.at(0).x()*t+coefBPrime.at(1).x());
+    qreal yvalue = coefBPrime.at(0).y()*t*t+2*coefBPrime.at(1).y()*t+coefBPrime.at(2).y();
+    qreal ysign = yvalue<0?-1:1;
+    yvalue = abs(yvalue)*ysign*2*(coefBPrime.at(0).y()*t+coefBPrime.at(1).y());
+    return xvalue+yvalue;
 }
 
 
@@ -387,7 +446,6 @@ void MainWindow::drawCurate(QGraphicsScene *scene)
     QPainterPath path;
     path.moveTo(desdata.at(0));
     for(const QPointF &point:desdata){
-        //!     不画点  只画线
         path.lineTo(point);
     }
     scene->addPath(path,QPen(Qt::red,2,Qt::SolidLine));
@@ -405,8 +463,8 @@ void MainWindow::drawContralPoint(QGraphicsScene *scene)
 //!     画坐标栅格图
 void MainWindow::drawGrid(QGraphicsScene *scene)
 {
-    qreal width = this->width();
-    qreal height = this->height();
+    qreal width = scene->width();
+    qreal height = scene->height();
     QPainterPath path;
     QPen pen;
     pen.setWidthF(0.5);
