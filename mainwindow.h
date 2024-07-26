@@ -25,6 +25,7 @@ public:
     void computeArcLength();                //      计算贝塞尔曲线的弧长
 
     void getIsoTime();                      //      计算贝塞尔曲线等距点的时间值
+    void NewtonIterator();                  //      牛顿迭代方法计算等距点的时间值
     void computeIsoPoint();
 
     qreal compute_f(const qreal &t);        //      计算 f 对应的函数值
@@ -33,10 +34,6 @@ public:
     QPointF computePoint(qreal &t);
 
 protected:
-    void paintEvent(QPaintEvent *event) override{
-        update();
-    }
-
 
 private:
     void drawCurate(QGraphicsScene *scene);
