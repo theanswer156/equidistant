@@ -43,6 +43,7 @@ private:
     void drawContralPoint(QGraphicsScene *scene);
     void drawGrid(QGraphicsScene *scene);
     void drawSegment(QGraphicsScene *scene);
+    void drawCrossPoint(QGraphicsScene *scene,const double& crosstime);
 private:
 //    QVector<int> pascaTri = {1,3,3,1};
     QList<QPointF> srcdata;
@@ -53,6 +54,7 @@ private:
     QList<qreal> coefficientG;
 
     QList<QPointF> coefBPrime;
+    QPointF crosspoint;
     QList<qreal> segtime;
     QVector<int> pascaTri{0,1,3,3,1};
     qreal arclength = 0;            //      弧长初始化为零

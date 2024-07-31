@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "segment.h"
 #include <QApplication>
 #include <QGraphicsEllipseItem>
 #include <QRandomGenerator>
@@ -20,25 +21,36 @@ MainWindow::MainWindow(QWidget *parent)
     // 设置视图的一些属性
     graphicsView->setRenderHint(QPainter::Antialiasing);
     setCentralWidget(graphicsView);
+    segment seg;
+    for(const Point& point:seg.outSrcData()){
+        srcdata.append(QPointF(point.x,point.y));
+    }
+    for(const Point& point:seg.outDesData()){
+        desdata.append(QPointF(point.x,point.y));
+    }
+    for(const Point& point:seg.outSegData()){
+        segdata.append(QPointF(point.x,point.y));
+    }
 
 
-    if(!srcdata.isEmpty()) return;
-    setSrcdata();
-    if(!desdata.isEmpty()) return;
-    getDesdata();
+//    if(!srcdata.isEmpty()) return;
+//    setSrcdata();
+//    if(!desdata.isEmpty()) return;
+//    getDesdata();
     drawContralPoint(scene);
     drawCurate(scene);
-    setCoeficient();
-    setCoeficientBPrime();
-    setCoeficientG();
-    computeArcLength();
+//    setCoeficient();
+//    setCoeficientBPrime();
+//    setCoeficientG();
+//    computeArcLength();
 
-    getIsoTime();
+//    getIsoTime();
 //    NewtonIterator();
-    computeIsoPoint();
+//    computeIsoPoint();
     drawSegment(scene);
-//    drawGrid(scene);
-
+    drawCrossPoint(scene,seg.outCrossTime());
+////    drawGrid(scene);
+//    drawCrossPoint(scene);
 
 }
 
@@ -49,23 +61,23 @@ MainWindow::~MainWindow()
 
 void MainWindow::setSrcdata()
 {
-    QRandomGenerator random;
-    quint32 seed = static_cast<quint32>(QRandomGenerator::global()->bounded(2001));
-    random.seed(seed);
-    for(int i = 0;i<4;++i){
-        qreal value_x = static_cast<qreal>(random.bounded(this->width())*2);
-        qreal value_y = static_cast<qreal>(random.bounded(this->height())*2);
-        srcdata.append(QPointF(value_x,value_y));
-    }
+//    QRandomGenerator random;
+//    quint32 seed = static_cast<quint32>(QRandomGenerator::global()->bounded(2001));
+//    random.seed(seed);
+//    for(int i = 0;i<4;++i){
+//        qreal value_x = static_cast<qreal>(random.bounded(this->width()));
+//        qreal value_y = static_cast<qreal>(random.bounded(this->height()));
+//        srcdata.append(QPointF(value_x,value_y));
+//    }
 //    std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b){
 //        qreal tolerence = 1e-9;
 //        return abs(a.x()-b.x())<tolerence?a.y()<b.y():a.x()<b.x();
 //    });
 
-//    srcdata.push_back(QPointF(215.0,76.0));
-//    srcdata.push_back(QPointF(302.0,469.0));
-//    srcdata.push_back(QPointF(359.0,60.0));
-//    srcdata.push_back(QPointF(505.0,207.0));
+    srcdata.push_back(QPointF(505.0,72.0));
+    srcdata.push_back(QPointF(199.0,91.0));
+    srcdata.push_back(QPointF(586.0,445.0));
+    srcdata.push_back(QPointF(393.0,20.0));
     for(const QPointF &point:srcdata)
         qDebug()<<point;
 }
@@ -142,7 +154,7 @@ void MainWindow::getIsoTime()
 //!     牛顿迭代法寻找等分点
 void MainWindow::NewtonIterator()
 {
-    int MaxIterator = 1e4;
+    int MaxIterator = 1e2;
     qreal tol = 1e-4;
     qreal damping = 1;
     segtime.append(0);
@@ -280,7 +292,7 @@ qreal MainWindow::computeSubArcLength(const qreal &begin, const qreal &end)
     bool exitLoops = false;
 
     qreal tol = 1e-1;
-    //!     这里容忍误差的设定与坐标的范围相关
+    //     这里容忍误差的设定与坐标的范围相关
     qreal result = 0;
     QVector<QVector<qreal>> romberg(n+1,QVector<qreal>(m+1,0));
     qreal t1 = begin;
@@ -402,6 +414,7 @@ void MainWindow::setCoeficientG()
                         +4*(coefBPrime[1].x()*coefBPrime[1].x()+coefBPrime[1].y()*coefBPrime[1].y()));
     coefficientG.append(4*(coefBPrime[1].x()*coefBPrime[2].x()+coefBPrime[1].y()*coefBPrime[2].y()));
     coefficientG.append(coefBPrime[2].x()*coefBPrime[2].x()+coefBPrime[2].y()*coefBPrime[2].y());
+
 }
 
 
@@ -459,7 +472,7 @@ void MainWindow::drawContralPoint(QGraphicsScene *scene)
 {
     for(const QPointF &point:srcdata){
         QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
-        item->setBrush(Qt::blue);
+        item->setBrush(Qt::black);
         item->setPos(point);
         scene->addItem(item);
     }
@@ -496,4 +509,19 @@ void MainWindow::drawSegment(QGraphicsScene *scene)
         item->setPos(point);
         scene->addItem(item);
     }
+}
+
+void MainWindow::drawCrossPoint(QGraphicsScene *scene, const double& crosstime)
+{
+    if(abs(crosstime+1)<1e-10){
+        qDebug("The bezier curve is not self-cross");
+        return;
+    }
+    qDebug("The bezier curve self-cross at time %llf",crosstime);
+    qreal time = crosstime;
+    crosspoint = computePoint(time);
+    QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
+    item->setBrush(Qt::blue);
+    item->setPos(crosspoint);
+    scene->addItem(item);
 }
