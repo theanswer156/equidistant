@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QGraphicsEllipseItem>
 #include <QRandomGenerator>
+#include <QPainterPath>
 #include <qboxlayout.h>
 #include <QDebug>
 #include <QtMath>
@@ -21,14 +22,14 @@ MainWindow::MainWindow(QWidget *parent)
     // 设置视图的一些属性
     graphicsView->setRenderHint(QPainter::Antialiasing);
     setCentralWidget(graphicsView);
-    segment seg;
-    for(const Point& point:seg.outSrcData()){
+    segment seg1(20);
+    for(const Point& point:seg1.outSrcData()){
         srcdata.append(QPointF(point.x,point.y));
     }
-    for(const Point& point:seg.outDesData()){
+    for(const Point& point:seg1.outDesData()){
         desdata.append(QPointF(point.x,point.y));
     }
-    for(const Point& point:seg.outSegData()){
+    for(const Point& point:seg1.outSegData()){
         segdata.append(QPointF(point.x,point.y));
     }
 
@@ -48,10 +49,25 @@ MainWindow::MainWindow(QWidget *parent)
 //    NewtonIterator();
 //    computeIsoPoint();
     drawSegment(scene);
-    drawCrossPoint(scene,seg.outCrossTime());
+    drawCrossPoint(scene,seg1.outCrossTime());
 ////    drawGrid(scene);
 //    drawCrossPoint(scene);
-
+//    srcdata.clear();
+//    desdata.clear();
+//    segdata.clear();
+//    segment seg2(10);
+//    for(const Point& point:seg2.outSrcData()){
+//        srcdata.append(QPointF(point.x,point.y));
+//    }
+//    for(const Point& point:seg2.outDesData()){
+//        desdata.append(QPointF(point.x,point.y));
+//    }
+//    for(const Point& point:seg2.outSegData()){
+//        segdata.append(QPointF(point.x,point.y));
+//    }
+//    drawCurate(scene);
+//    drawSegment(scene);
+//    drawCrossPoint(scene,seg2.outCrossTime());
 }
 
 MainWindow::~MainWindow()
@@ -460,6 +476,7 @@ qreal MainWindow::compute_gradf(const qreal &t)
 //!     画贝塞尔曲线
 void MainWindow::drawCurate(QGraphicsScene *scene)
 {
+    if(desdata.empty()) return;
     QPainterPath path;
     path.moveTo(desdata.at(0));
     for(const QPointF &point:desdata){
@@ -502,6 +519,7 @@ void MainWindow::drawGrid(QGraphicsScene *scene)
 //!     画等距分段贝塞尔曲线
 void MainWindow::drawSegment(QGraphicsScene *scene)
 {
+    if(segdata.empty()) return;
     for(const QPointF &point:segdata){
         qDebug()<<point;
         QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,3,3);
@@ -517,7 +535,7 @@ void MainWindow::drawCrossPoint(QGraphicsScene *scene, const double& crosstime)
         qDebug("The bezier curve is not self-cross");
         return;
     }
-    qDebug("The bezier curve self-cross at time %llf",crosstime);
+    qDebug("The bezier curve self-cross at time %llf \n",crosstime);
     qreal time = crosstime;
     crosspoint = computePoint(time);
     QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
