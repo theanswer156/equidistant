@@ -23,14 +23,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 CONFIG += c++11
-
+INCLUDEPATH += D:/VSCode_Program/segcut
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-        segment.cpp
+    segment.cpp
+#        D:/VSCode_Program/segcut/segment.cpp
 HEADERS += \
         mainwindow.h \
-        segment.h
+    segment.h
+#        D:/VSCode_Program/segcut/segment.h
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin

@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <math.h>
 #include <time.h>
+#include <algorithm>
 using namespace std;
 segment::segment(const int& count)
 {
@@ -15,11 +16,11 @@ segment::segment(const int& count)
    setCoeficient();
    setCoeficientBPrime();
    setCoeficientG();
-   computeArcLength();
+//    computeArcLength();
 
-   getIsoTime();
+//    getIsoTime();
 //    NewtonIterator();
-   computeIsoPoint();
+//    computeIsoPoint();
    computeCrossTime();
 
 }
@@ -32,11 +33,11 @@ segment::segment()
    setCoeficient();
    setCoeficientBPrime();
    setCoeficientG();
-   computeArcLength();
+//    computeArcLength();
 
-   getIsoTime();
+//    getIsoTime();
 //    NewtonIterator();
-   computeIsoPoint();
+//    computeIsoPoint();
    computeCrossTime();
 
 }
@@ -48,15 +49,15 @@ segment::~segment()
 
 void segment::setSrcData()
 {
-//    srand(time(0));
-//    for (int i = 0; i < 4; ++i)
-//    {
-//        srcdata.emplace_back(rand()/4e1,rand()/4e1);
-//    }
-    srcdata.emplace_back(Point(100.0,0.0));
-    srcdata.emplace_back(Point(500.0,500.0));
-    srcdata.emplace_back(Point(0.0,500.0));
-    srcdata.emplace_back(Point(300.0,0.0));
+    // srand(time(0));
+    // for (int i = 0; i < 4; ++i)
+    // {
+    //     srcdata.emplace_back(rand()/4e1,rand()/4e1);
+    // }
+   srcdata.emplace_back(Point(500.0,0.0));
+   srcdata.emplace_back(Point(0.0,500.0));
+   srcdata.emplace_back(Point(500,500.0));
+   srcdata.emplace_back(Point(60.0,22.0));
 }
 
 void segment::getDesData()
@@ -261,7 +262,8 @@ void segment::computeIsoPoint()
 //      这时贝塞尔曲线的四个控制点在同一条直线上  曲线没有自相交的点
 //      如果B或C为零向量  表明四个控制点有三个在同一直线上(重合的点也算)
 //      这时曲线没有自相交的点
-//      如果A为零向量   说明三阶贝塞尔曲线变成了二阶贝塞尔曲线  只不过这时
+//      如果A为零向量     
+//      说明三阶贝塞尔曲线变成了二阶贝塞尔曲线  只不过这时
 //      是由四个控制点控制而已   相当于是升阶(或者说是降阶)了    这时也没有自相交的点
 //      综上所述   只有当A、B线性无关的时候曲线才可能会有相交的点  只要在这个时候求交点就好了
 void segment::computeCrossTime()
@@ -274,21 +276,114 @@ void segment::computeCrossTime()
     double k2 = (coefficient.at(0).x*coefficient.at(2).y-coefficient.at(0).y*coefficient.at(2).x)/judgement1;
     if(k1>0 || k2>0) return;
     double delta = -4*k1-3*k2*k2;
+    //!     当delta判别式等于0的时候  time1==time2  我们把这种情况剔除
     if(delta<=0) return;
     double time1 = (-k2+sqrt(delta))/2;
     double time2 = (-k2-sqrt(delta))/2;
-    if(time1>=0 && time1 <=1){
-        crosstime = time1;
-    }else if(time2>=0 && time2 <=1){
-        crosstime = time2;
+    //!     如果有一个不在范围内的话   另外就不能与之称为一对有效的解
+    //!     从而只要有一个不对  那么另外一个也不需要了
+    if(time1>=0 && time1 <=1 && time2>=0 && time2<=1){
+        selfcrosstime = time1;
     }
-    if(crosstime>=0){
-        printf("The bezier curve self-cross at time %llf",crosstime);
+    if(selfcrosstime>=0){
+        printf("The bezier curve self-cross at time %llf",selfcrosstime);
     }else{
         printf("The bezier curve is not self-cross");
     }
 }
 
+void segment::computeCrossTime1()
+{
+    //! 计算两个贝塞尔曲线交点  还是只能采用包络框的方式 由computTimeSeq函数计算
+    //! 得到的两条曲线单调性变化的位置最后由二分法计算   可以得到所有的交点
+    //! 所以我们要做的就是能够快速找到有交的包络框
+    //! 由于timeseq1、timeseq2的定义  我们可以知道在两个时间段内曲线要么是严格凹的
+    //! 要么是严格凸的  
+
+    //      先做退出去的判断   这里不能对crosstime做判断  因为我们是要做递归调用 
+    //      采用类似于剪枝的方法去做的
+    //      其实可以暴力的使用这种方法去计算交点  比如将0-1以0.001分为1000份
+    //      进行一百万次计算就可以精确到0.001  很是不错
+    //      如果通过先暴力  平均分为10份   总共分成100个区域  结合曲线的单调性来
+    //      计算  将在区间内严格单调的
+    //      不是  我直接根据计算而来的两个贝塞尔曲线单调性变化的数据timeseq将
+    //      两个贝塞尔曲线直接分成这些曲线段  然后用牛顿迭代法去找不就是了  这样岂不是更快
+    //      这样最多要执行25次牛顿迭代  但是牛顿迭代是二次收敛的   怕什么
+    //      
+    
+    //      double eps = 1e-2;
+    for(double i = 0;i<1.0;i+=0.01){
+        double end1 = i+0.01;
+        Point point1 = computePoint(i);
+        Point point2 = computePoint(end1);
+        for(double j = 0;j<1.0;j+=0.01){
+            double end2 = j+0.01;
+            Point point3 = computePoint1(j);
+            Point point4 = computePoint1(end2);
+            if(isRectangleIntersecting(point1,point2,point3,point4)){
+                crosstime.emplace_back(i);
+                crosstime.emplace_back(end1);
+                crosstime.emplace_back(j);
+                crosstime.emplace_back(end2);
+            }
+        }
+    }
+}
+
+void segment::computeTimeSeq()
+{   //  计算 x 参数方程单调性变化的两个时间点  我们只要单调性变化的时间点  
+    //  恒为常数或者一直递增或递减可以不存入  这些情况都没有单调性的变化
+    //  但是这样一直用if 确实不太好
+    if(true){
+        if(coefBPrime.at(0).x != 0){
+            double delta = coefBPrime.at(1).x*coefBPrime.at(1).x-4*coefBPrime.at(0).x*coefBPrime.at(2).x;
+            if(delta>=0){
+                double time1 = (-coefBPrime.at(1).x+sqrt(delta))/(2*coefBPrime.at(0).x);
+                double time2 = (-coefBPrime.at(1).x-sqrt(delta))/(2*coefBPrime.at(0).x);
+                if(time1>=0 && time1 <=1){
+                    timeseq.emplace_back(time1);
+                }
+                if(time2>=0 && time2 <=1){
+                    timeseq.emplace_back(time2);
+                }
+            }
+        }else if(coefBPrime.at(1).x != 0){
+            double time1 = -coefBPrime.at(2).x/coefBPrime.at(1).x;
+            if(time1>=0 && time1 <=1){
+                timeseq.emplace_back(time1);
+            }
+        }
+    }
+    //  计算 y 参数方程单调性变化的两个时间点
+    if(true){
+        if(coefBPrime.at(0).y != 0){
+            double delta = coefBPrime.at(1).y*coefBPrime.at(1).y-4*coefBPrime.at(0).y*coefBPrime.at(2).y;
+            if(delta>=0){
+                double time1 = (-coefBPrime.at(1).y+sqrt(delta))/(2*coefBPrime.at(0).y);
+                double time2 = (-coefBPrime.at(1).y-sqrt(delta))/(2*coefBPrime.at(0).y);
+                if(time1>=0 && time1 <=1){
+                    timeseq.emplace_back(time1);
+                }
+                if(time2>=0 && time2 <=1){
+                    timeseq.emplace_back(time2);
+                }
+            }
+        }else if(coefBPrime.at(1).y != 0){
+            double time1 = -coefBPrime.at(2).y/coefBPrime.at(1).y;
+            if(time1>=0 && time1 <=1){
+                timeseq.emplace_back(time1);
+            }
+        }
+    }
+    //      对单调性变化的时间进行逆排序   从1到0的逆序排序
+    std::sort(timeseq.begin(),timeseq.end());
+    reverse(timeseq.begin(),timeseq.end());
+}
+
+bool segment::isRectangleIntersecting(const Point &p1, const Point &p2, const Point &p3, const Point &p4)
+{
+    return !(p2.x < p3.x || p1.x > p4.x || p2.y > p3.y || p1.y < p4.y);
+}
 
 double segment::compute_f(const double &t)
 {
@@ -306,7 +401,7 @@ double segment::compute_f(const double &t)
 
 double segment::compute_gradf(const double &t)
 {
-        double xvalue = coefBPrime.at(0).x*t*t+2*coefBPrime.at(1).x*t+coefBPrime.at(2).x;
+    double xvalue = coefBPrime.at(0).x*t*t+2*coefBPrime.at(1).x*t+coefBPrime.at(2).x;
     double xsign = xvalue<0?-1:1;
     xvalue = abs(xvalue)*xsign*2*(coefBPrime.at(0).x*t+coefBPrime.at(1).x);
     double yvalue = coefBPrime.at(0).y*t*t+2*coefBPrime.at(1).y*t+coefBPrime.at(2).y;
@@ -413,9 +508,12 @@ double segment::computeSubArcLength(const double &begin, const double &end)
     //     std::copy(romberg[i].begin(),romberg[i].end(),std::ostream_iterator<double>(std::cout," "));
 
     // }
-
-
     return result;
+}
+
+double segment::dist(const Point &p1, const Point &p2)
+{
+    return sqrt(pow(p1.x-p2.x,2)+pow(p1.y-p2.y,2));
 }
 
 Point segment::computePoint(double &t)
@@ -446,6 +544,34 @@ Point segment::computePoint(double &t)
     return resultPoint;
 }
 
+Point segment::computePoint1(double &t)
+{
+        Point resultPoint;
+
+    int size = srcdata1.size();
+    vector<double> coefficient(size, 0);
+    coefficient[0] = 1.000;
+    double u1 = 1.0 - t;
+    //!
+    //! De Casteljau递推算法
+    //!
+    for (int j = 1; j <= size - 1; j++) {
+        double saved = 0.0;
+        for (int k = 0; k < j; k++){
+            double temp = coefficient[k];
+            coefficient[k] = saved + u1 * temp;
+            saved = t * temp;
+        }
+        coefficient[j] = saved;
+    }
+    for (int i = 0; i < size; i++) {
+        Point point = srcdata1.at(i);
+        resultPoint = resultPoint + point * coefficient[i];
+    }
+
+    return resultPoint;
+}
+
 vector<Point> segment::outSegData()
 {
     return segdata;
@@ -463,5 +589,5 @@ vector<Point> segment::outDesData()
 
 double segment::outCrossTime()
 {
-    return crosstime;
+    return selfcrosstime;
 }
