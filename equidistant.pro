@@ -27,12 +27,10 @@ INCLUDEPATH += D:/VSCode_Program/segcut
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    segment.cpp
-#        D:/VSCode_Program/segcut/segment.cpp
+        D:/VSCode_Program/segcut/segment.cpp
 HEADERS += \
         mainwindow.h \
-    segment.h
-#        D:/VSCode_Program/segcut/segment.h
+        D:/VSCode_Program/segcut/segment.h
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
