@@ -46,11 +46,21 @@ MainWindow::MainWindow(QWidget *parent)
     for(const Point& crosspoint:seg1.outSelfCrossPoint()){
         selfcrosspoint.append(QPointF(crosspoint.x,crosspoint.y));
     }
-
+    for(const Point& crosspoint1:seg1.outCrossPoint()){
+        crosspoint.append(QPointF(crosspoint1.x,crosspoint1.y));
+    }
+    for(const Rectangle& rect:seg1.outMinRectangle()){
+        QPointF topLeft{rect.LeftUp.x,rect.LeftUp.y};
+        QPointF bottomRight{rect.RightDown.x,rect.RightDown.y};
+        minRectangle.append(QRectF{topLeft,bottomRight});
+    }
     drawContralPoint(scene);
     drawCurate(scene);
     drawSegment(scene);
-    drawSelfCrossPoint(scene,selfcrosspoint);
+
+    drawCrossPoint(scene,selfcrosspoint);
+    drawCrossPoint(scene,crosspoint);
+    drawMinRectangle(scene);
 }
 
 MainWindow::~MainWindow()
@@ -95,6 +105,7 @@ void MainWindow::drawCurate(QGraphicsScene *scene)
 void MainWindow::drawContralPoint(QGraphicsScene *scene)
 {
     for(const QVector<QPointF> &points:srcdata){
+        qDebug()<<points<<"\n";
         for(const QPointF& point:points){
             QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
             item->setBrush(Qt::black);
@@ -130,7 +141,7 @@ void MainWindow::drawSegment(QGraphicsScene *scene)
 {
     if(segdata.empty()) return;
     for(const QVector<QPointF> &points:segdata){
-        qDebug()<<points;
+//        qDebug()<<points;
         for(const QPointF& point:points){
             QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,3,3);
             item->setBrush(Qt::green);
@@ -138,14 +149,29 @@ void MainWindow::drawSegment(QGraphicsScene *scene)
             scene->addItem(item);
         }
     }
+    qDebug("\n");
 }
 
-void MainWindow::drawSelfCrossPoint(QGraphicsScene *scene, const QVector<QPointF>& selfcrosspoint)
+void MainWindow::drawCrossPoint(QGraphicsScene *scene, const QVector<QPointF>& selfcrosspoint)
 {
     for(const QPointF& crosspoint:selfcrosspoint){
+        qDebug()<<crosspoint;
         QGraphicsEllipseItem *item = new QGraphicsEllipseItem(0,0,5,5);
-        item->setBrush(Qt::blue);
+        item->setBrush(Qt::yellow);
         item->setPos(crosspoint);
         scene->addItem(item);
     }
+    qDebug("\n");
+
+}
+
+void MainWindow::drawMinRectangle(QGraphicsScene *scene)
+{
+    for(const QRectF& rect:minRectangle){
+//        qDebug()<<rect;
+        scene->addRect(rect,QPen(Qt::blue));
+
+    }
+    qDebug("MinRectangle drawed \n");
+
 }

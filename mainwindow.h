@@ -24,7 +24,8 @@ private:
     void drawContralPoint(QGraphicsScene *scene);
     void drawGrid(QGraphicsScene *scene);
     void drawSegment(QGraphicsScene *scene);
-    void drawSelfCrossPoint(QGraphicsScene *scene,const QVector<QPointF>& selfcrosspoint);
+    void drawCrossPoint(QGraphicsScene *scene,const QVector<QPointF>& crosspoint);
+    void drawMinRectangle(QGraphicsScene *scene);
 
 private:
 //    QVector<int> pascaTri = {1,3,3,1};
@@ -37,9 +38,11 @@ private:
     QVector<QVector<qreal>> coefficientG;
 
     QVector<QPointF> selfcrosspoint;
+    QVector<QPointF> crosspoint;
     QVector<QVector<qreal>> segtime;
     QVector<QVector<QPointF>> pointseq;
     QVector<QVector<qreal>> timingseq;
+    QVector<QRectF>  minRectangle;  //      外包络框
     QVector<qreal> crosstime;
     QVector<int> pascaTri{0,1,3,3,1};
     qreal arclength = 0;            //      弧长初始化为零
