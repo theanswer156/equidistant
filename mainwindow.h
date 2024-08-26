@@ -25,8 +25,10 @@ private:
     void drawContralPoint(QGraphicsScene *scene);
     void drawGrid(QGraphicsScene *scene);
     void drawSegment(QGraphicsScene *scene);
+
     void drawArchHeight(QGraphicsScene *scene);
     void drawAdaptSampling(QGraphicsScene *scene);
+
     void drawCrossPoint(QGraphicsScene *scene,const QVector<QPointF>& crosspoint);
     void drawMinRectangle(QGraphicsScene *scene);
 

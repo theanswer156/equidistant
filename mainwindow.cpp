@@ -23,7 +23,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     graphicsView->setRenderHint(QPainter::Antialiasing);
     setCentralWidget(graphicsView);
+
     qDebug()<<std::thread::hardware_concurrency();
+
     initial();
     ArchHeight archHeightSeg(5,2);
     int index = 0;
@@ -45,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
         ++index;
     }
+
     for(const vector<Point>& points:archHeightSeg.outAdaptPoint()){
         for(const Point& point:points){
             adaptdata[index%2].append(point);
@@ -91,6 +94,7 @@ MainWindow::MainWindow(QWidget *parent)
 //    drawCrossPoint(scene,selfcrosspoint);
 //    drawCrossPoint(scene,crosspoint);
 //    drawMinRectangle(scene);
+
 }
 
 MainWindow::~MainWindow()
@@ -179,6 +183,7 @@ void MainWindow::drawSegment(QGraphicsScene *scene)
             item->setPos(point);
             scene->addItem(item);
         }
+
     }
     qDebug("\n");
 }
@@ -195,8 +200,11 @@ void MainWindow::drawArchHeight(QGraphicsScene *scene)
         }
         scene->addPath(path,QPen(Qt::blue,2,Qt::DashDotLine));
         ++i;
+
     }
+    qDebug("\n");
 }
+
 
 void MainWindow::drawAdaptSampling(QGraphicsScene *scene)
 {
@@ -211,6 +219,7 @@ void MainWindow::drawAdaptSampling(QGraphicsScene *scene)
         }
     }
 }
+
 
 void MainWindow::drawCrossPoint(QGraphicsScene *scene, const QVector<QPointF>& selfcrosspoint)
 {
